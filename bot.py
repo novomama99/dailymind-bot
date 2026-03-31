@@ -50,6 +50,8 @@ async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     days = max(1, stats["days_since_joined"])
     consistency = round(stats["total_games"] / days * 100)
     alltime_rank = db.get_alltime_rank(user_id)
+    avg_time = db.get_avg_answer_time(user_id)
+    avg_time_str = f"{avg_time:.1f}s" if avg_time is not None else "N/A"
 
     await update.message.reply_text(
         f"📊 *Your Stats*\n\n"
@@ -58,7 +60,8 @@ async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         f"💰 All-time score: *{stats['all_time_score']} pts*\n"
         f"🌍 All-time rank: *#{alltime_rank}*\n"
         f"🎮 Games played: *{stats['total_games']}*\n"
-        f"📅 Consistency: *{consistency}%*",
+        f"📅 Consistency: *{consistency}%*\n"
+        f"⚡ Avg answer time: *{avg_time_str}*",
         parse_mode="Markdown",
     )
 

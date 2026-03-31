@@ -360,3 +360,25 @@ def count_players(game_date: str) -> int:
             WHERE game_date = ? AND finished_at IS NOT NULL
         """, (game_date,)).fetchone()
         return row["n"]
+
+
+def get_notifiable_users() -> list[int]:
+    """Return user_ids of all users who have completed at least one game."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT user_id FROM users WHERE last_played IS NOT NULL"
+        ).fetchall()
+        return [r["user_id"] for r in rows]
+
+
+def get_avg_answer_time(user_id: int) -> Optional[float]:
+    """Return average answer time in seconds across all answered (non-timeout) questions."""
+    with _conn() as conn:
+        row = conn.execute("""
+            SELECT AVG(a.time_seconds) AS avg_time
+            FROM answers a
+            JOIN game_sessions gs ON a.session_id = gs.id
+            WHERE gs.user_id = ? AND gs.finished_at IS NOT NULL
+              AND a.selected_index IS NOT NULL
+        """, (user_id,)).fetchone()
+        return row["avg_time"] if row and row["avg_time"] is not None else None

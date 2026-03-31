@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 from datetime import date
@@ -5,6 +6,7 @@ from datetime import date
 from telegram.ext import Application, ContextTypes
 
 from config import CHANNEL_ID, SGT
+import db
 import questions
 import leaderboard
 
@@ -41,6 +43,26 @@ async def _post_leaderboard_job(context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.exception("Failed to post evening leaderboard for %s", today)
 
 
+async def _send_daily_notification_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_ids = db.get_notifiable_users()
+    if not user_ids:
+        return
+    logger.info("Sending daily notification to %d users", len(user_ids))
+    sent = 0
+    for user_id in user_ids:
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="Today's challenge is ready! /play to start. 🧠",
+            )
+            sent += 1
+        except Exception:
+            logger.warning("Failed to notify user %d", user_id, exc_info=True)
+        # Stay safely under Telegram's 30 msg/sec global limit
+        await asyncio.sleep(1 / 25)
+    logger.info("Daily notification sent to %d/%d users", sent, len(user_ids))
+
+
 def setup_scheduler(app: Application) -> None:
     jq = app.job_queue
 
@@ -49,6 +71,13 @@ def setup_scheduler(app: Application) -> None:
         _generate_questions_job,
         time=datetime.time(6, 0, 0, tzinfo=SGT),
         name="generate_questions",
+    )
+
+    # 6:05 AM SGT — notify all returning users
+    jq.run_daily(
+        _send_daily_notification_job,
+        time=datetime.time(6, 5, 0, tzinfo=SGT),
+        name="send_notifications",
     )
 
     # 10:00 PM SGT — post results to channel

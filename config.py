@@ -18,5 +18,5 @@ SPEED_BONUS_MED = 15    # 5–15 s
 SPEED_BONUS_SLOW = 5    # 15–30 s
 MAX_DAILY_SCORE = 1040
 
-DB_PATH = "dailymind.db"
+DB_PATH = "/data/dailymind.db" if os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") else "dailymind.db"
 OPENTDB_URL = "https://opentdb.com/api.php"
