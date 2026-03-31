@@ -163,7 +163,7 @@ async def handle_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     db.upsert_user(user.id, user.username, user.first_name)
 
     existing = db.get_session(user.id, today)
-    if existing:
+    if existing and existing["finished_at"]:
         rank = db.get_rank(existing["id"], today)
         await update.message.reply_text(
             f"You already played today! 🎯\n"
@@ -177,10 +177,14 @@ async def handle_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("You're already in the middle of a game!")
         return
 
+    # Clean up any orphaned unfinished session (e.g. from a bot restart mid-game)
+    if existing and not existing["finished_at"]:
+        db.reset_user_session(user.id, today)
+
     questions = db.get_daily_questions(today)
     if not questions:
         await update.message.reply_text(
-            "Today's questions aren't ready yet. Check back after 6:00 AM SGT!"
+            "Today's questions aren't ready yet. Check back after 5:00 AM SGT!"
         )
         return
 
@@ -204,13 +208,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         today = sgt_today()
 
         existing = db.get_session(user.id, today)
-        if existing:
+        if existing and existing["finished_at"]:
             await query.edit_message_text("You already played today!")
             return
 
         if user.id in _sessions:
             await query.edit_message_text("You're already playing!")
             return
+
+        # Clean up any orphaned unfinished session
+        if existing and not existing["finished_at"]:
+            db.reset_user_session(user.id, today)
 
         questions = db.get_daily_questions(today)
         if not questions:

@@ -24,6 +24,7 @@ Restricted to Telegram user ID `45878459`. All others receive "Not authorised."
 
 | Command | Description |
 |---|---|
+| `/admin` | List all admin commands |
 | `/reset` | Delete your game session and answers for today so you can `/play` again |
 | `/preview` | Show today's 8 questions with correct answers marked — no game session created |
 | `/testgenerate` | Force question generation for today (no-op if questions already exist) |

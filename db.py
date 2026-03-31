@@ -138,21 +138,13 @@ def get_alltime_rank(user_id: int) -> int:
             FROM game_sessions WHERE user_id = ? AND finished_at IS NOT NULL
         """, (user_id,)).fetchone()
         row = conn.execute("""
-            SELECT COUNT(DISTINCT user_id) + 1 AS rank
-            FROM game_sessions
-            WHERE finished_at IS NOT NULL
-            GROUP BY user_id
-            HAVING SUM(total_score) > ?
-        """, (my["s"],)).fetchone()
-        # COUNT(DISTINCT ...) in a HAVING subquery — simpler direct approach:
-        row2 = conn.execute("""
             SELECT COUNT(*) + 1 AS rank FROM (
                 SELECT user_id, SUM(total_score) AS s
                 FROM game_sessions WHERE finished_at IS NOT NULL
                 GROUP BY user_id
             ) WHERE s > ?
         """, (my["s"],)).fetchone()
-        return row2["rank"]
+        return row["rank"]
 
 
 # ── Question pool ─────────────────────────────────────────────────────────────

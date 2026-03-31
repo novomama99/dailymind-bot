@@ -81,6 +81,21 @@ async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 _ADMIN_ID = 45878459
 
 
+async def handle_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != _ADMIN_ID:
+        await update.message.reply_text("Not authorised.")
+        return
+    await update.message.reply_text(
+        "🔧 *Admin Commands*\n\n"
+        "/reset — Clear your session so you can replay today\n"
+        "/preview — Show today's questions with correct answers\n"
+        "/testgenerate — Force question generation for today\n"
+        "/testnotify — Trigger the morning notification job\n"
+        "/admin — Show this message",
+        parse_mode="Markdown",
+    )
+
+
 async def handle_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != _ADMIN_ID:
         await update.message.reply_text("Not authorised.")
@@ -227,6 +242,7 @@ def main() -> None:
     app.add_handler(CommandHandler("stats", handle_stats))
     app.add_handler(CommandHandler("review", handle_review))
     app.add_handler(CommandHandler("generate", handle_generate))
+    app.add_handler(CommandHandler("admin", handle_admin))
     app.add_handler(CommandHandler("reset", handle_reset))
     app.add_handler(CommandHandler("preview", handle_preview))
     app.add_handler(CommandHandler("testnotify", handle_testnotify))
