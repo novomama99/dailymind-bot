@@ -62,7 +62,7 @@ async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def handle_halloffame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(format_hall_of_fame(), parse_mode="Markdown")
+    await update.message.reply_text(format_hall_of_fame(update.effective_user.id), parse_mode="Markdown")
 
 
 async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

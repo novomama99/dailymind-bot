@@ -368,6 +368,82 @@ def count_players(game_date: str) -> int:
         return row["n"]
 
 
+def count_alltime_players() -> int:
+    with _conn() as conn:
+        row = conn.execute("""
+            SELECT COUNT(DISTINCT user_id) AS n FROM game_sessions WHERE finished_at IS NOT NULL
+        """).fetchone()
+        return row["n"]
+
+
+def get_leaderboard_position(game_date: str, user_id: int, window: int = 3):
+    """Return (rank, context_rows) for user on game_date. rank is None if not played."""
+    with _conn() as conn:
+        rank_row = conn.execute("""
+            WITH ranked AS (
+                SELECT ROW_NUMBER() OVER (ORDER BY gs.total_score DESC, gs.total_time_seconds ASC) AS rank,
+                       gs.user_id
+                FROM game_sessions gs
+                WHERE gs.game_date = ? AND gs.finished_at IS NOT NULL
+            )
+            SELECT rank FROM ranked WHERE user_id = ?
+        """, (game_date, user_id)).fetchone()
+
+        if rank_row is None:
+            return None, []
+
+        user_rank = rank_row["rank"]
+        context = conn.execute("""
+            WITH ranked AS (
+                SELECT ROW_NUMBER() OVER (ORDER BY gs.total_score DESC, gs.total_time_seconds ASC) AS rank,
+                       gs.user_id, gs.total_score, gs.total_time_seconds,
+                       u.username, u.first_name
+                FROM game_sessions gs
+                JOIN users u ON gs.user_id = u.user_id
+                WHERE gs.game_date = ? AND gs.finished_at IS NOT NULL
+            )
+            SELECT * FROM ranked WHERE rank BETWEEN ? AND ? ORDER BY rank
+        """, (game_date, max(1, user_rank - window), user_rank + window)).fetchall()
+
+        return user_rank, context
+
+
+def get_alltime_position(user_id: int, window: int = 3):
+    """Return (rank, context_rows) for user in all-time rankings. rank is None if never played."""
+    with _conn() as conn:
+        rank_row = conn.execute("""
+            WITH ranked AS (
+                SELECT ROW_NUMBER() OVER (ORDER BY SUM(gs.total_score) DESC) AS rank,
+                       gs.user_id
+                FROM game_sessions gs
+                WHERE gs.finished_at IS NOT NULL
+                GROUP BY gs.user_id
+            )
+            SELECT rank FROM ranked WHERE user_id = ?
+        """, (user_id,)).fetchone()
+
+        if rank_row is None:
+            return None, []
+
+        user_rank = rank_row["rank"]
+        context = conn.execute("""
+            WITH ranked AS (
+                SELECT ROW_NUMBER() OVER (ORDER BY SUM(gs.total_score) DESC) AS rank,
+                       gs.user_id,
+                       SUM(gs.total_score) AS total_score,
+                       COUNT(gs.id) AS games_played,
+                       u.username, u.first_name
+                FROM game_sessions gs
+                JOIN users u ON gs.user_id = u.user_id
+                WHERE gs.finished_at IS NOT NULL
+                GROUP BY gs.user_id
+            )
+            SELECT * FROM ranked WHERE rank BETWEEN ? AND ? ORDER BY rank
+        """, (max(1, user_rank - window), user_rank + window)).fetchall()
+
+        return user_rank, context
+
+
 def get_notifiable_users() -> list[int]:
     """Return user_ids of all users who have completed at least one game."""
     with _conn() as conn:

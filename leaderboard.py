@@ -18,7 +18,20 @@ def _fmt_time(seconds: float) -> str:
     return f"{mins}m {secs:02d}s" if mins else f"{secs}s"
 
 
-def format_leaderboard(game_date: str) -> str:
+def _fmt_context_row_daily(r, user_id: int) -> str:
+    name = _display_name(r)
+    time_str = _fmt_time(r["total_time_seconds"])
+    marker = " ←" if r["user_id"] == user_id else ""
+    return f"{r['rank']}. {name} — {r['total_score']} pts ({time_str}){marker}"
+
+
+def _fmt_context_row_alltime(r, user_id: int) -> str:
+    name = _display_name(r)
+    marker = " ←" if r["user_id"] == user_id else ""
+    return f"{r['rank']}. {name} — {r['total_score']} pts ({r['games_played']} games){marker}"
+
+
+def format_leaderboard(game_date: str, user_id: int) -> str:
     try:
         d = datetime.strptime(game_date, "%Y-%m-%d")
         display_date = d.strftime("%-d %b")
@@ -27,6 +40,8 @@ def format_leaderboard(game_date: str) -> str:
 
     medals = ["🥇", "🥈", "🥉"]
     rows = db.get_leaderboard(game_date, limit=10)
+    total = db.count_players(game_date)
+
     if rows:
         lines = [f"📅 *Today — {display_date}*\n"]
         for i, r in enumerate(rows):
@@ -34,26 +49,65 @@ def format_leaderboard(game_date: str) -> str:
             name = _display_name(r)
             time_str = _fmt_time(r["total_time_seconds"])
             lines.append(f"{medal} {name} — {r['total_score']} pts ({time_str})")
-        total = db.count_players(game_date)
         if total > 10:
             lines.append(f"_...and {total - 10} more_")
     else:
         lines = [f"📅 *Today — {display_date}*\n", "_No one has played yet. Be the first — /play!_"]
 
+    user_rank, context = db.get_leaderboard_position(game_date, user_id)
+
+    if user_rank is None:
+        lines.append("")
+        lines.append("_You haven't played yet. /play to start._")
+    elif user_rank > 10:
+        lines.append("")
+        lines.append("📍 *Your Position*")
+        first_rank = context[0]["rank"] if context else user_rank
+        last_rank = context[-1]["rank"] if context else user_rank
+        if first_rank > 11:
+            lines.append("_..._")
+        for r in context:
+            lines.append(_fmt_context_row_daily(r, user_id))
+        if last_rank < total:
+            lines.append("_..._")
+
     return "\n".join(lines)
 
 
-def format_hall_of_fame() -> str:
+def format_hall_of_fame(user_id: int) -> str:
     medals = ["🥇", "🥈", "🥉"]
     rows = db.get_alltime_leaderboard(limit=10)
+    total = db.count_alltime_players()
+
     lines = ["🏆 *Hall of Fame — All-Time*\n"]
     if rows:
         for i, r in enumerate(rows):
             medal = medals[i] if i < 3 else f"{i + 1}."
             name = _display_name(r)
             lines.append(f"{medal} {name} — {r['total_score']} pts ({r['games_played']} games)")
+        if total > 10:
+            lines.append(f"_...and {total - 10} more_")
     else:
         lines.append("_No finished games yet._")
+        return "\n".join(lines)
+
+    user_rank, context = db.get_alltime_position(user_id)
+
+    if user_rank is None:
+        lines.append("")
+        lines.append("_You haven't finished a game yet. /play to start._")
+    elif user_rank > 10:
+        lines.append("")
+        lines.append("📍 *Your Position*")
+        first_rank = context[0]["rank"] if context else user_rank
+        last_rank = context[-1]["rank"] if context else user_rank
+        if first_rank > 11:
+            lines.append("_..._")
+        for r in context:
+            lines.append(_fmt_context_row_alltime(r, user_id))
+        if last_rank < total:
+            lines.append("_..._")
+
     return "\n".join(lines)
 
 
@@ -91,5 +145,5 @@ def format_evening_post(game_date: str) -> str:
 
 async def handle_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     today = sgt_today()
-    text = format_leaderboard(today)
+    text = format_leaderboard(today, update.effective_user.id)
     await update.message.reply_text(text, parse_mode="Markdown")
