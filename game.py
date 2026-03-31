@@ -2,7 +2,6 @@ import asyncio
 import json
 import time
 from dataclasses import dataclass, field
-from datetime import date
 from typing import Optional
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -15,6 +14,7 @@ from config import (
     SPEED_BONUS_FAST,
     SPEED_BONUS_MED,
     SPEED_BONUS_SLOW,
+    sgt_today,
 )
 
 _LABELS = ["A", "B", "C", "D"]
@@ -47,7 +47,7 @@ def _calc_points(elapsed: float) -> int:
 
 
 async def _send_question(context: ContextTypes.DEFAULT_TYPE, state: _GameState) -> None:
-    today = date.today().isoformat()
+    today = sgt_today()
     questions = db.get_daily_questions(today)
     q = questions[state.current_q_idx]
     options = json.loads(q["options"])
@@ -88,7 +88,7 @@ async def _handle_timeout(
 
     state.awaiting_answer = False
 
-    today = date.today().isoformat()
+    today = sgt_today()
     questions = db.get_daily_questions(today)
     q = questions[q_idx]
     options = json.loads(q["options"])
@@ -158,7 +158,7 @@ async def _finish_session(context: ContextTypes.DEFAULT_TYPE, state: _GameState)
 
 async def handle_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
-    today = date.today().isoformat()
+    today = sgt_today()
 
     db.upsert_user(user.id, user.username, user.first_name)
 
@@ -201,7 +201,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     data = query.data
 
     if data == "game_start":
-        today = date.today().isoformat()
+        today = sgt_today()
 
         existing = db.get_session(user.id, today)
         if existing:
@@ -242,7 +242,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         selected = int(data.split("_")[-1])
         elapsed = time.monotonic() - state.q_start_time
 
-        today = date.today().isoformat()
+        today = sgt_today()
         questions = db.get_daily_questions(today)
         q = questions[state.current_q_idx]
         options = json.loads(q["options"])

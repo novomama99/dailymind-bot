@@ -1,11 +1,10 @@
 import asyncio
 import datetime
 import logging
-from datetime import date
 
 from telegram.ext import Application, ContextTypes
 
-from config import CHANNEL_ID, SGT
+from config import CHANNEL_ID, SGT, sgt_today
 import db
 import questions
 import leaderboard
@@ -21,7 +20,7 @@ async def generate_questions_for_date(game_date: str) -> None:
 
 
 async def _generate_questions_job(context: ContextTypes.DEFAULT_TYPE) -> None:
-    today = date.today().isoformat()
+    today = sgt_today()
     try:
         await generate_questions_for_date(today)
     except Exception:
@@ -32,7 +31,7 @@ async def _post_leaderboard_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     if not CHANNEL_ID:
         logger.warning("CHANNEL_ID not set — skipping evening post")
         return
-    today = date.today().isoformat()
+    today = sgt_today()
     text = leaderboard.format_evening_post(today)
     try:
         await context.bot.send_message(
@@ -65,7 +64,7 @@ async def _send_daily_notification_job(context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def _send_evening_notification_job(context: ContextTypes.DEFAULT_TYPE) -> None:
-    today = date.today().isoformat()
+    today = sgt_today()
     user_ids = db.get_unplayed_users_today(today)
     if not user_ids:
         return

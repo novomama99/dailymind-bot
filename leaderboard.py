@@ -1,9 +1,10 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
 import db
+from config import sgt_today
 
 
 def _display_name(row) -> str:
@@ -89,6 +90,6 @@ def format_evening_post(game_date: str) -> str:
 
 
 async def handle_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    today = date.today().isoformat()
+    today = sgt_today()
     text = format_leaderboard(today)
     await update.message.reply_text(text, parse_mode="Markdown")

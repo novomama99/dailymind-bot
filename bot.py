@@ -1,12 +1,11 @@
 import json
 import logging
-from datetime import date
 
 from telegram import Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 import db
-from config import ADMIN_IDS, BOT_TOKEN
+from config import ADMIN_IDS, BOT_TOKEN, sgt_today
 from game import handle_callback, handle_play
 from leaderboard import handle_leaderboard, format_hall_of_fame
 from questions import seed_all_pools
@@ -86,7 +85,7 @@ async def handle_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if update.effective_user.id != _ADMIN_ID:
         await update.message.reply_text("Not authorised.")
         return
-    today = date.today().isoformat()
+    today = sgt_today()
     deleted = db.reset_user_session(_ADMIN_ID, today)
     if deleted:
         await update.message.reply_text(f"Session for {today} cleared. You can /play again.")
@@ -107,7 +106,7 @@ async def handle_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if update.effective_user.id != _ADMIN_ID:
         await update.message.reply_text("Not authorised.")
         return
-    today = date.today().isoformat()
+    today = sgt_today()
     questions = db.get_daily_questions(today)
     if not questions:
         await update.message.reply_text(f"No questions generated for {today} yet.")
@@ -131,7 +130,7 @@ async def handle_testgenerate(update: Update, context: ContextTypes.DEFAULT_TYPE
     if update.effective_user.id != _ADMIN_ID:
         await update.message.reply_text("Not authorised.")
         return
-    today = date.today().isoformat()
+    today = sgt_today()
     await update.message.reply_text(f"Generating questions for {today}…")
     try:
         await generate_questions_for_date(today)
@@ -146,7 +145,7 @@ async def handle_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if ADMIN_IDS and update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("Not authorised.")
         return
-    today = date.today().isoformat()
+    today = sgt_today()
     await update.message.reply_text(f"Generating questions for {today}…")
     try:
         await generate_questions_for_date(today)
@@ -159,7 +158,7 @@ async def handle_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def handle_review(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
-    today = date.today().isoformat()
+    today = sgt_today()
 
     session = db.get_session(user_id, today)
     if not session or not session["finished_at"]:
@@ -199,7 +198,7 @@ async def handle_review(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def _on_startup(app: Application) -> None:
     seed_all_pools()
-    today = date.today().isoformat()
+    today = sgt_today()
     if not db.get_daily_questions(today):
         logger.info("No questions found for %s — generating now…", today)
         try:

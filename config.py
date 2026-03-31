@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 BOT_TOKEN: str = os.environ["BOT_TOKEN"]
@@ -8,6 +9,11 @@ ADMIN_IDS: set[int] = {
 }
 
 SGT = ZoneInfo("Asia/Singapore")
+
+
+def sgt_today() -> str:
+    """Return today's date as an ISO string in SGT, regardless of server timezone."""
+    return datetime.now(SGT).date().isoformat()
 
 QUESTIONS_PER_DAY = 8
 QUESTION_TIMEOUT = 30  # seconds

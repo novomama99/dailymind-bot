@@ -3,7 +3,7 @@ import sqlite3
 from datetime import date
 from typing import Optional
 
-from config import DB_PATH
+from config import DB_PATH, sgt_today
 
 
 def _conn() -> sqlite3.Connection:
@@ -91,7 +91,7 @@ def upsert_user(user_id: int, username: Optional[str], first_name: Optional[str]
 
 
 def update_streak(user_id: int) -> None:
-    today = date.today()
+    today = date.fromisoformat(sgt_today())
     with _conn() as conn:
         row = conn.execute(
             "SELECT last_played, current_streak, best_streak FROM users WHERE user_id = ?",
