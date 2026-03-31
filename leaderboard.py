@@ -25,12 +25,10 @@ def format_leaderboard(game_date: str) -> str:
         display_date = game_date
 
     medals = ["🥇", "🥈", "🥉"]
-
-    # ── Today ─────────────────────────────────────────────────────────────────
-    today_rows = db.get_leaderboard(game_date, limit=10)
-    if today_rows:
+    rows = db.get_leaderboard(game_date, limit=10)
+    if rows:
         lines = [f"📅 *Today — {display_date}*\n"]
-        for i, r in enumerate(today_rows):
+        for i, r in enumerate(rows):
             medal = medals[i] if i < 3 else f"{i + 1}."
             name = _display_name(r)
             time_str = _fmt_time(r["total_time_seconds"])
@@ -41,18 +39,20 @@ def format_leaderboard(game_date: str) -> str:
     else:
         lines = [f"📅 *Today — {display_date}*\n", "_No one has played yet. Be the first — /play!_"]
 
-    # ── All-time ──────────────────────────────────────────────────────────────
-    alltime_rows = db.get_alltime_leaderboard(limit=10)
-    lines.append("")
-    lines.append("🏆 *All-Time*\n")
-    if alltime_rows:
-        for i, r in enumerate(alltime_rows):
+    return "\n".join(lines)
+
+
+def format_hall_of_fame() -> str:
+    medals = ["🥇", "🥈", "🥉"]
+    rows = db.get_alltime_leaderboard(limit=10)
+    lines = ["🏆 *Hall of Fame — All-Time*\n"]
+    if rows:
+        for i, r in enumerate(rows):
             medal = medals[i] if i < 3 else f"{i + 1}."
             name = _display_name(r)
             lines.append(f"{medal} {name} — {r['total_score']} pts ({r['games_played']} games)")
     else:
         lines.append("_No finished games yet._")
-
     return "\n".join(lines)
 
 

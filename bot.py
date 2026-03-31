@@ -8,7 +8,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 import db
 from config import ADMIN_IDS, BOT_TOKEN
 from game import handle_callback, handle_play
-from leaderboard import handle_leaderboard
+from leaderboard import handle_leaderboard, format_hall_of_fame
 from questions import seed_all_pools
 from scheduler import generate_questions_for_date, setup_scheduler, _send_daily_notification_job
 
@@ -29,11 +29,7 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "👋 Welcome to *DailyMind*!\n\n"
         "Every day: 8 fresh questions — mental math + trivia.\n"
         "One shot per day. Fastest, most accurate player wins.\n\n"
-        "*Commands*\n"
-        "/play — Start today's challenge\n"
-        "/leaderboard — Today's global top 10\n"
-        "/stats — Your personal stats\n"
-        "/review — Review today's answers",
+        "Use /help to see all commands.",
         parse_mode="Markdown",
     )
 
@@ -62,6 +58,23 @@ async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         f"🎮 Games played: *{stats['total_games']}*\n"
         f"📅 Consistency: *{consistency}%*\n"
         f"⚡ Avg answer time: *{avg_time_str}*",
+        parse_mode="Markdown",
+    )
+
+
+async def handle_halloffame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(format_hall_of_fame(), parse_mode="Markdown")
+
+
+async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(
+        "🧠 *DailyMind Commands*\n\n"
+        "/play — Start today's challenge\n"
+        "/leaderboard — Today's top 10\n"
+        "/halloffame — All-time top 10 by total score\n"
+        "/stats — Your streaks, score, and answer stats\n"
+        "/review — See your answers vs correct answers for today\n"
+        "/help — Show this message",
         parse_mode="Markdown",
     )
 
@@ -196,8 +209,10 @@ def main() -> None:
     )
 
     app.add_handler(CommandHandler("start", handle_start))
+    app.add_handler(CommandHandler("help", handle_help))
     app.add_handler(CommandHandler("play", handle_play))
     app.add_handler(CommandHandler("leaderboard", handle_leaderboard))
+    app.add_handler(CommandHandler("halloffame", handle_halloffame))
     app.add_handler(CommandHandler("stats", handle_stats))
     app.add_handler(CommandHandler("review", handle_review))
     app.add_handler(CommandHandler("generate", handle_generate))
