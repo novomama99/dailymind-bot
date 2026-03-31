@@ -24,7 +24,7 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         update.effective_user.username,
         update.effective_user.first_name,
     )
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "👋 Welcome to *DailyMind*!\n\n"
         "Every day: 8 fresh questions — mental math + trivia.\n"
         "One shot per day. Fastest, most accurate player wins.\n\n"
@@ -34,14 +34,12 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("DEBUG: stats handler reached")
+    msg = update.effective_message
     try:
         user_id = update.effective_user.id
         stats = db.get_user_stats(user_id)
         if not stats or stats["total_games"] == 0:
-            await update.message.reply_text(
-                "You haven't finished a game yet. Use /play to start!"
-            )
+            await msg.reply_text("You haven't finished a game yet. Use /play to start!")
             return
 
         days = max(1, stats["days_since_joined"])
@@ -50,7 +48,7 @@ async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         avg_time = db.get_avg_answer_time(user_id)
         avg_time_str = f"{avg_time:.1f}s" if avg_time is not None else "N/A"
 
-        await update.message.reply_text(
+        await msg.reply_text(
             f"📊 *Your Stats*\n\n"
             f"🔥 Current streak: *{stats['current_streak']} days*\n"
             f"🏅 Best streak: *{stats['best_streak']} days*\n"
@@ -63,33 +61,29 @@ async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
     except Exception as e:
         logger.exception("/stats failed for user_id=%d", update.effective_user.id)
-        await update.message.reply_text(f"Error: {e}")
+        await msg.reply_text(f"Error: {e}")
 
 
 async def handle_halloffame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("DEBUG: halloffame handler reached")
+    msg = update.effective_message
     try:
-        await update.message.reply_text(format_hall_of_fame(update.effective_user.id), parse_mode="Markdown")
+        await msg.reply_text(format_hall_of_fame(update.effective_user.id), parse_mode="Markdown")
     except Exception as e:
         logger.exception("/halloffame failed for user_id=%d", update.effective_user.id)
-        await update.message.reply_text(f"Error: {e}")
+        await msg.reply_text(f"Error: {e}")
 
 
 async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    try:
-        await update.message.reply_text(
-            "🧠 *DailyMind Commands*\n\n"
-            "/play — Start today's challenge\n"
-            "/leaderboard — Today's top 10\n"
-            "/halloffame — All-time top 10 by total score\n"
-            "/stats — Your streaks, score, and answer stats\n"
-            "/review — See your answers vs correct answers for today\n"
-            "/help — Show this message",
-            parse_mode="Markdown",
-        )
-    except Exception as e:
-        logger.exception("/help failed for user_id=%d", update.effective_user.id)
-        await update.message.reply_text(f"Error: {e}")
+    await update.effective_message.reply_text(
+        "🧠 *DailyMind Commands*\n\n"
+        "/play — Start today's challenge\n"
+        "/leaderboard — Today's top 10\n"
+        "/halloffame — All-time top 10 by total score\n"
+        "/stats — Your streaks, score, and answer stats\n"
+        "/review — See your answers vs correct answers for today\n"
+        "/help — Show this message",
+        parse_mode="Markdown",
+    )
 
 
 _ADMIN_ID = 45878459
@@ -97,9 +91,9 @@ _ADMIN_ID = 45878459
 
 async def handle_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != _ADMIN_ID:
-        await update.message.reply_text("Not authorised.")
+        await update.effective_message.reply_text("Not authorised.")
         return
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "🔧 *Admin Commands*\n\n"
         "/reset — Clear your session so you can replay today\n"
         "/preview — Show today's questions with correct answers\n"
@@ -112,33 +106,33 @@ async def handle_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def handle_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != _ADMIN_ID:
-        await update.message.reply_text("Not authorised.")
+        await update.effective_message.reply_text("Not authorised.")
         return
     today = sgt_today()
     deleted = db.reset_user_session(_ADMIN_ID, today)
     if deleted:
-        await update.message.reply_text(f"Session for {today} cleared. You can /play again.")
+        await update.effective_message.reply_text(f"Session for {today} cleared. You can /play again.")
     else:
-        await update.message.reply_text(f"No session found for {today}.")
+        await update.effective_message.reply_text(f"No session found for {today}.")
 
 
 async def handle_testnotify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != _ADMIN_ID:
-        await update.message.reply_text("Not authorised.")
+        await update.effective_message.reply_text("Not authorised.")
         return
-    await update.message.reply_text("Triggering daily notification job…")
+    await update.effective_message.reply_text("Triggering daily notification job…")
     await _send_daily_notification_job(context)
-    await update.message.reply_text("Done.")
+    await update.effective_message.reply_text("Done.")
 
 
 async def handle_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != _ADMIN_ID:
-        await update.message.reply_text("Not authorised.")
+        await update.effective_message.reply_text("Not authorised.")
         return
     today = sgt_today()
     questions = db.get_daily_questions(today)
     if not questions:
-        await update.message.reply_text(f"No questions generated for {today} yet.")
+        await update.effective_message.reply_text(f"No questions generated for {today} yet.")
         return
 
     lines = [f"📋 *Preview — {today}*\n"]
@@ -152,55 +146,52 @@ async def handle_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             lines.append(f"  {marker} {opt}")
         lines.append("")
 
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    await update.effective_message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
 async def handle_testgenerate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != _ADMIN_ID:
-        await update.message.reply_text("Not authorised.")
+        await update.effective_message.reply_text("Not authorised.")
         return
     today = sgt_today()
-    await update.message.reply_text(f"Generating questions for {today}…")
+    await update.effective_message.reply_text(f"Generating questions for {today}…")
     try:
         await generate_questions_for_date(today)
         qs = db.get_daily_questions(today)
-        await update.message.reply_text(f"Done. {len(qs)} questions ready for {today}.")
+        await update.effective_message.reply_text(f"Done. {len(qs)} questions ready for {today}.")
     except Exception as exc:
         logger.exception("Test question generation failed")
-        await update.message.reply_text(f"Failed: {exc}")
+        await update.effective_message.reply_text(f"Failed: {exc}")
 
 
 async def handle_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if ADMIN_IDS and update.effective_user.id not in ADMIN_IDS:
-        await update.message.reply_text("Not authorised.")
+        await update.effective_message.reply_text("Not authorised.")
         return
     today = sgt_today()
-    await update.message.reply_text(f"Generating questions for {today}…")
+    await update.effective_message.reply_text(f"Generating questions for {today}…")
     try:
         await generate_questions_for_date(today)
         qs = db.get_daily_questions(today)
-        await update.message.reply_text(f"Done. {len(qs)} questions ready for {today}.")
+        await update.effective_message.reply_text(f"Done. {len(qs)} questions ready for {today}.")
     except Exception as exc:
         logger.exception("Manual question generation failed")
-        await update.message.reply_text(f"Failed: {exc}")
+        await update.effective_message.reply_text(f"Failed: {exc}")
 
 
 async def handle_review(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("DEBUG: review handler reached")
+    msg = update.effective_message
     try:
         user_id = update.effective_user.id
         today = sgt_today()
 
         session = db.get_session(user_id, today)
         if not session or not session["finished_at"]:
-            await update.message.reply_text(
-                "You haven't completed today's challenge yet. Use /play!"
-            )
+            await msg.reply_text("You haven't completed today's challenge yet. Use /play!")
             return
 
         answers = db.get_user_answers(session["id"])
         questions = db.get_daily_questions(today)
-
         answers_by_idx = {a["question_index"]: a for a in answers}
 
         lines = ["📋 *Today's Review*\n"]
@@ -224,10 +215,10 @@ async def handle_review(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 if a and a["selected_index"] is not None:
                     lines.append(f"   ✘ Your answer: _{opts[a['selected_index']]}_")
 
-        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+        await msg.reply_text("\n".join(lines), parse_mode="Markdown")
     except Exception as e:
         logger.exception("/review failed for user_id=%d", update.effective_user.id)
-        await update.message.reply_text(f"Error: {e}")
+        await msg.reply_text(f"Error: {e}")
 
 
 async def _on_startup(app: Application) -> None:

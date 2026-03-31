@@ -10,10 +10,17 @@ from config import sgt_today
 logger = logging.getLogger(__name__)
 
 
+def _escape_md(text: str) -> str:
+    """Escape MarkdownV1 special characters in user-supplied strings."""
+    for ch in ("_", "*", "`", "["):
+        text = text.replace(ch, f"\\{ch}")
+    return text
+
+
 def _display_name(row) -> str:
     if row["username"]:
-        return f"@{row['username']}"
-    return row["first_name"] or "Player"
+        return f"@{_escape_md(row['username'])}"
+    return _escape_md(row["first_name"]) if row["first_name"] else "Player"
 
 
 def _fmt_time(seconds: float) -> str:
@@ -147,30 +154,14 @@ def format_evening_post(game_date: str) -> str:
 
 
 async def handle_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("DEBUG: leaderboard handler reached")
+    msg = update.effective_message
     user_id = update.effective_user.id
     today = sgt_today()
     logger.info("/leaderboard called by user_id=%d for date=%s", user_id, today)
-
     try:
-        total = db.count_players(today)
-        logger.info("count_players(%s) = %d", today, total)
-
-        top10 = db.get_leaderboard(today, limit=10)
-        logger.info("get_leaderboard(%s) returned %d rows", today, len(top10))
-        for i, r in enumerate(top10):
-            logger.info("  top10[%d]: user=%s score=%s time=%s",
-                        i, r["username"] or r["first_name"], r["total_score"], r["total_time_seconds"])
-
-        user_rank, ctx = db.get_leaderboard_position(today, user_id)
-        logger.info("get_leaderboard_position(%s, %d) = rank=%s, context_rows=%d",
-                    today, user_id, user_rank, len(ctx))
-
         text = format_leaderboard(today, user_id)
-        logger.info("format_leaderboard produced %d chars", len(text))
-    except Exception:
+    except Exception as e:
         logger.exception("/leaderboard failed for user_id=%d date=%s", user_id, today)
-        await update.message.reply_text("Something went wrong loading the leaderboard. Try again.")
+        await msg.reply_text(f"Error: {e}")
         return
-
-    await update.message.reply_text(text, parse_mode="Markdown")
+    await msg.reply_text(text, parse_mode="Markdown")
