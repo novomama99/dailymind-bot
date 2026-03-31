@@ -34,48 +34,60 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_id = update.effective_user.id
-    stats = db.get_user_stats(user_id)
-    if not stats or stats["total_games"] == 0:
+    try:
+        user_id = update.effective_user.id
+        stats = db.get_user_stats(user_id)
+        if not stats or stats["total_games"] == 0:
+            await update.message.reply_text(
+                "You haven't finished a game yet. Use /play to start!"
+            )
+            return
+
+        days = max(1, stats["days_since_joined"])
+        consistency = round(stats["total_games"] / days * 100)
+        alltime_rank = db.get_alltime_rank(user_id)
+        avg_time = db.get_avg_answer_time(user_id)
+        avg_time_str = f"{avg_time:.1f}s" if avg_time is not None else "N/A"
+
         await update.message.reply_text(
-            "You haven't finished a game yet. Use /play to start!"
+            f"📊 *Your Stats*\n\n"
+            f"🔥 Current streak: *{stats['current_streak']} days*\n"
+            f"🏅 Best streak: *{stats['best_streak']} days*\n"
+            f"💰 All-time score: *{stats['all_time_score']} pts*\n"
+            f"🌍 All-time rank: *#{alltime_rank}*\n"
+            f"🎮 Games played: *{stats['total_games']}*\n"
+            f"📅 Consistency: *{consistency}%*\n"
+            f"⚡ Avg answer time: *{avg_time_str}*",
+            parse_mode="Markdown",
         )
-        return
-
-    days = max(1, stats["days_since_joined"])
-    consistency = round(stats["total_games"] / days * 100)
-    alltime_rank = db.get_alltime_rank(user_id)
-    avg_time = db.get_avg_answer_time(user_id)
-    avg_time_str = f"{avg_time:.1f}s" if avg_time is not None else "N/A"
-
-    await update.message.reply_text(
-        f"📊 *Your Stats*\n\n"
-        f"🔥 Current streak: *{stats['current_streak']} days*\n"
-        f"🏅 Best streak: *{stats['best_streak']} days*\n"
-        f"💰 All-time score: *{stats['all_time_score']} pts*\n"
-        f"🌍 All-time rank: *#{alltime_rank}*\n"
-        f"🎮 Games played: *{stats['total_games']}*\n"
-        f"📅 Consistency: *{consistency}%*\n"
-        f"⚡ Avg answer time: *{avg_time_str}*",
-        parse_mode="Markdown",
-    )
+    except Exception as e:
+        logger.exception("/stats failed for user_id=%d", update.effective_user.id)
+        await update.message.reply_text(f"Error: {e}")
 
 
 async def handle_halloffame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(format_hall_of_fame(update.effective_user.id), parse_mode="Markdown")
+    try:
+        await update.message.reply_text(format_hall_of_fame(update.effective_user.id), parse_mode="Markdown")
+    except Exception as e:
+        logger.exception("/halloffame failed for user_id=%d", update.effective_user.id)
+        await update.message.reply_text(f"Error: {e}")
 
 
 async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
-        "🧠 *DailyMind Commands*\n\n"
-        "/play — Start today's challenge\n"
-        "/leaderboard — Today's top 10\n"
-        "/halloffame — All-time top 10 by total score\n"
-        "/stats — Your streaks, score, and answer stats\n"
-        "/review — See your answers vs correct answers for today\n"
-        "/help — Show this message",
-        parse_mode="Markdown",
-    )
+    try:
+        await update.message.reply_text(
+            "🧠 *DailyMind Commands*\n\n"
+            "/play — Start today's challenge\n"
+            "/leaderboard — Today's top 10\n"
+            "/halloffame — All-time top 10 by total score\n"
+            "/stats — Your streaks, score, and answer stats\n"
+            "/review — See your answers vs correct answers for today\n"
+            "/help — Show this message",
+            parse_mode="Markdown",
+        )
+    except Exception as e:
+        logger.exception("/help failed for user_id=%d", update.effective_user.id)
+        await update.message.reply_text(f"Error: {e}")
 
 
 _ADMIN_ID = 45878459
@@ -172,43 +184,47 @@ async def handle_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def handle_review(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_id = update.effective_user.id
-    today = sgt_today()
+    try:
+        user_id = update.effective_user.id
+        today = sgt_today()
 
-    session = db.get_session(user_id, today)
-    if not session or not session["finished_at"]:
-        await update.message.reply_text(
-            "You haven't completed today's challenge yet. Use /play!"
-        )
-        return
+        session = db.get_session(user_id, today)
+        if not session or not session["finished_at"]:
+            await update.message.reply_text(
+                "You haven't completed today's challenge yet. Use /play!"
+            )
+            return
 
-    answers = db.get_user_answers(session["id"])
-    questions = db.get_daily_questions(today)
+        answers = db.get_user_answers(session["id"])
+        questions = db.get_daily_questions(today)
 
-    answers_by_idx = {a["question_index"]: a for a in answers}
+        answers_by_idx = {a["question_index"]: a for a in answers}
 
-    lines = ["📋 *Today's Review*\n"]
-    for q in questions:
-        opts = json.loads(q["options"])
-        correct_text = opts[q["correct_index"]]
-        a = answers_by_idx.get(q["question_index"])
+        lines = ["📋 *Today's Review*\n"]
+        for q in questions:
+            opts = json.loads(q["options"])
+            correct_text = opts[q["correct_index"]]
+            a = answers_by_idx.get(q["question_index"])
 
-        if a and a["is_correct"]:
-            status = "✅"
-        elif a and a["selected_index"] is None:
-            status = "⏰"
-        else:
-            status = "❌"
+            if a and a["is_correct"]:
+                status = "✅"
+            elif a and a["selected_index"] is None:
+                status = "⏰"
+            else:
+                status = "❌"
 
-        q_short = q["question_text"][:60] + ("…" if len(q["question_text"]) > 60 else "")
-        lines.append(f"{status} *Q{q['question_index'] + 1}:* {q_short}")
+            q_short = q["question_text"][:60] + ("…" if len(q["question_text"]) > 60 else "")
+            lines.append(f"{status} *Q{q['question_index'] + 1}:* {q_short}")
 
-        if not (a and a["is_correct"]):
-            lines.append(f"   ✔ Correct: _{correct_text}_")
-            if a and a["selected_index"] is not None:
-                lines.append(f"   ✘ Your answer: _{opts[a['selected_index']]}_")
+            if not (a and a["is_correct"]):
+                lines.append(f"   ✔ Correct: _{correct_text}_")
+                if a and a["selected_index"] is not None:
+                    lines.append(f"   ✘ Your answer: _{opts[a['selected_index']]}_")
 
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    except Exception as e:
+        logger.exception("/review failed for user_id=%d", update.effective_user.id)
+        await update.message.reply_text(f"Error: {e}")
 
 
 async def _on_startup(app: Application) -> None:
