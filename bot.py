@@ -10,7 +10,7 @@ from config import ADMIN_IDS, BOT_TOKEN
 from game import handle_callback, handle_play
 from leaderboard import handle_leaderboard
 from questions import seed_all_pools
-from scheduler import generate_questions_for_date, setup_scheduler
+from scheduler import generate_questions_for_date, setup_scheduler, _send_daily_notification_job
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -64,6 +64,33 @@ async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         f"⚡ Avg answer time: *{avg_time_str}*",
         parse_mode="Markdown",
     )
+
+
+_ADMIN_ID = 45878459
+
+
+async def handle_testnotify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != _ADMIN_ID:
+        await update.message.reply_text("Not authorised.")
+        return
+    await update.message.reply_text("Triggering daily notification job…")
+    await _send_daily_notification_job(context)
+    await update.message.reply_text("Done.")
+
+
+async def handle_testgenerate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != _ADMIN_ID:
+        await update.message.reply_text("Not authorised.")
+        return
+    today = date.today().isoformat()
+    await update.message.reply_text(f"Generating questions for {today}…")
+    try:
+        await generate_questions_for_date(today)
+        qs = db.get_daily_questions(today)
+        await update.message.reply_text(f"Done. {len(qs)} questions ready for {today}.")
+    except Exception as exc:
+        logger.exception("Test question generation failed")
+        await update.message.reply_text(f"Failed: {exc}")
 
 
 async def handle_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -150,6 +177,8 @@ def main() -> None:
     app.add_handler(CommandHandler("stats", handle_stats))
     app.add_handler(CommandHandler("review", handle_review))
     app.add_handler(CommandHandler("generate", handle_generate))
+    app.add_handler(CommandHandler("testnotify", handle_testnotify))
+    app.add_handler(CommandHandler("testgenerate", handle_testgenerate))
     app.add_handler(CallbackQueryHandler(handle_callback))
 
     setup_scheduler(app)
