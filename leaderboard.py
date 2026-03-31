@@ -147,6 +147,7 @@ def format_evening_post(game_date: str) -> str:
 
 
 async def handle_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("DEBUG: leaderboard handler reached")
     user_id = update.effective_user.id
     today = sgt_today()
     logger.info("/leaderboard called by user_id=%d for date=%s", user_id, today)

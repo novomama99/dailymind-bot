@@ -34,6 +34,7 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("DEBUG: stats handler reached")
     try:
         user_id = update.effective_user.id
         stats = db.get_user_stats(user_id)
@@ -66,6 +67,7 @@ async def handle_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def handle_halloffame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("DEBUG: halloffame handler reached")
     try:
         await update.message.reply_text(format_hall_of_fame(update.effective_user.id), parse_mode="Markdown")
     except Exception as e:
@@ -184,6 +186,7 @@ async def handle_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def handle_review(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("DEBUG: review handler reached")
     try:
         user_id = update.effective_user.id
         today = sgt_today()
