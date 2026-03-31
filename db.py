@@ -371,6 +371,19 @@ def get_notifiable_users() -> list[int]:
         return [r["user_id"] for r in rows]
 
 
+def get_unplayed_users_today(game_date: str) -> list[int]:
+    """Return user_ids of returning users who have NOT played on game_date."""
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT user_id FROM users
+            WHERE last_played IS NOT NULL
+              AND user_id NOT IN (
+                  SELECT user_id FROM game_sessions WHERE game_date = ?
+              )
+        """, (game_date,)).fetchall()
+        return [r["user_id"] for r in rows]
+
+
 def get_avg_answer_time(user_id: int) -> Optional[float]:
     """Return average answer time in seconds across all answered (non-timeout) questions."""
     with _conn() as conn:
