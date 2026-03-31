@@ -78,6 +78,30 @@ async def handle_testnotify(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await update.message.reply_text("Done.")
 
 
+async def handle_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != _ADMIN_ID:
+        await update.message.reply_text("Not authorised.")
+        return
+    today = date.today().isoformat()
+    questions = db.get_daily_questions(today)
+    if not questions:
+        await update.message.reply_text(f"No questions generated for {today} yet.")
+        return
+
+    lines = [f"📋 *Preview — {today}*\n"]
+    for q in questions:
+        opts = json.loads(q["options"])
+        correct_text = opts[q["correct_index"]]
+        lines.append(f"*Q{q['question_index'] + 1}* `[{q['question_type']}]`")
+        lines.append(q["question_text"])
+        for i, opt in enumerate(opts):
+            marker = "✅" if i == q["correct_index"] else "◦"
+            lines.append(f"  {marker} {opt}")
+        lines.append("")
+
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
 async def handle_testgenerate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != _ADMIN_ID:
         await update.message.reply_text("Not authorised.")
@@ -177,6 +201,7 @@ def main() -> None:
     app.add_handler(CommandHandler("stats", handle_stats))
     app.add_handler(CommandHandler("review", handle_review))
     app.add_handler(CommandHandler("generate", handle_generate))
+    app.add_handler(CommandHandler("preview", handle_preview))
     app.add_handler(CommandHandler("testnotify", handle_testnotify))
     app.add_handler(CommandHandler("testgenerate", handle_testgenerate))
     app.add_handler(CallbackQueryHandler(handle_callback))
