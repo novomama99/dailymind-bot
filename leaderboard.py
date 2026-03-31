@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from telegram import Update
@@ -5,6 +6,8 @@ from telegram.ext import ContextTypes
 
 import db
 from config import sgt_today
+
+logger = logging.getLogger(__name__)
 
 
 def _display_name(row) -> str:
@@ -144,6 +147,29 @@ def format_evening_post(game_date: str) -> str:
 
 
 async def handle_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
     today = sgt_today()
-    text = format_leaderboard(today, update.effective_user.id)
+    logger.info("/leaderboard called by user_id=%d for date=%s", user_id, today)
+
+    try:
+        total = db.count_players(today)
+        logger.info("count_players(%s) = %d", today, total)
+
+        top10 = db.get_leaderboard(today, limit=10)
+        logger.info("get_leaderboard(%s) returned %d rows", today, len(top10))
+        for i, r in enumerate(top10):
+            logger.info("  top10[%d]: user=%s score=%s time=%s",
+                        i, r["username"] or r["first_name"], r["total_score"], r["total_time_seconds"])
+
+        user_rank, ctx = db.get_leaderboard_position(today, user_id)
+        logger.info("get_leaderboard_position(%s, %d) = rank=%s, context_rows=%d",
+                    today, user_id, user_rank, len(ctx))
+
+        text = format_leaderboard(today, user_id)
+        logger.info("format_leaderboard produced %d chars", len(text))
+    except Exception:
+        logger.exception("/leaderboard failed for user_id=%d date=%s", user_id, today)
+        await update.message.reply_text("Something went wrong loading the leaderboard. Try again.")
+        return
+
     await update.message.reply_text(text, parse_mode="Markdown")
