@@ -82,6 +82,18 @@ async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 _ADMIN_ID = 45878459
 
 
+async def handle_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != _ADMIN_ID:
+        await update.message.reply_text("Not authorised.")
+        return
+    today = date.today().isoformat()
+    deleted = db.reset_user_session(_ADMIN_ID, today)
+    if deleted:
+        await update.message.reply_text(f"Session for {today} cleared. You can /play again.")
+    else:
+        await update.message.reply_text(f"No session found for {today}.")
+
+
 async def handle_testnotify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != _ADMIN_ID:
         await update.message.reply_text("Not authorised.")
@@ -216,6 +228,7 @@ def main() -> None:
     app.add_handler(CommandHandler("stats", handle_stats))
     app.add_handler(CommandHandler("review", handle_review))
     app.add_handler(CommandHandler("generate", handle_generate))
+    app.add_handler(CommandHandler("reset", handle_reset))
     app.add_handler(CommandHandler("preview", handle_preview))
     app.add_handler(CommandHandler("testnotify", handle_testnotify))
     app.add_handler(CommandHandler("testgenerate", handle_testgenerate))

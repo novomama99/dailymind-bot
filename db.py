@@ -301,6 +301,20 @@ def record_answer(
         """, (session_id, question_index, selected_index, is_correct, time_seconds, points_earned))
 
 
+def reset_user_session(user_id: int, game_date: str) -> bool:
+    """Delete a user's session and answers for game_date. Returns True if a session existed."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM game_sessions WHERE user_id = ? AND game_date = ?",
+            (user_id, game_date),
+        ).fetchone()
+        if row is None:
+            return False
+        conn.execute("DELETE FROM answers WHERE session_id = ?", (row["id"],))
+        conn.execute("DELETE FROM game_sessions WHERE id = ?", (row["id"],))
+        return True
+
+
 def get_user_answers(session_id: int) -> list[sqlite3.Row]:
     with _conn() as conn:
         return conn.execute(
